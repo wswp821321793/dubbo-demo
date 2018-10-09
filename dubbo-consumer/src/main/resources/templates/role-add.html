@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+  
+  <head>
+    <meta charset="UTF-8">
+    <title>欢迎页面-X-admin2.0</title>
+    <meta name="renderer" content="webkit">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width,user-scalable=yes, minimum-scale=0.4, initial-scale=0.8,target-densitydpi=low-dpi" />
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="stylesheet" href="./css/font.css">
+    <link rel="stylesheet" href="./css/xadmin.css">
+    <!--<script type="text/javascript" src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>-->
+      <link rel="stylesheet" href="./css/demo.css" type="text/css">
+      <link rel="stylesheet" href="./css/zTreeStyle/zTreeStyle.css" type="text/css">
+      <script type="text/javascript" src="./js/jquery-1.4.4.min.js"></script>
+      <script type="text/javascript" src="./js/jquery.ztree.core.js"></script>
+      <script type="text/javascript" src="./js/jquery.ztree.excheck.js"></script>
+    <script type="text/javascript" src="./lib/layui/layui.js" charset="utf-8"></script>
+    <script type="text/javascript" src="./js/xadmin.js"></script>
+    <!-- 让IE8/9支持媒体查询，从而兼容栅格 -->
+    <!--[if lt IE 9]>
+      <script src="https://cdn.staticfile.org/html5shiv/r29/html5.min.js"></script>
+      <script src="https://cdn.staticfile.org/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  </head>
+  
+  <body>
+    <div class="x-body">
+        <form action="" method="post" class="layui-form layui-form-pane">
+                <div class="layui-form-item">
+                    <label for="name" class="layui-form-label">
+                        <span class="x-red">*</span>角色名
+                    </label>
+                    <div class="layui-input-inline">
+                        <input type="text" id="name" name="name" required="" lay-verify="required"
+                        autocomplete="off" class="layui-input">
+                    </div>
+                </div>
+                <div class="layui-form-item layui-form-text">
+                    <label class="layui-form-label">
+                        拥有权限
+                    </label>
+                    <div class="layui-form-item" pane="">
+                        <ul id="treeDemo" class="ztree"></ul>
+                    </div>
+                </div>
+                <div class="layui-form-item layui-form-text">
+                    <label for="desc" class="layui-form-label">
+                        描述
+                    </label>
+                    <div class="layui-input-block">
+                        <textarea placeholder="请输入内容" id="desc" name="desc" class="layui-textarea"></textarea>
+                    </div>
+                </div>
+                <div class="layui-form-item">
+                <button class="layui-btn" lay-submit="" lay-filter="add">确认</button>
+              </div>
+            </form>
+    </div>
+
+    <script>
+
+        var setting = {
+            check: {
+                enable: true
+            },
+            data: {
+                simpleData: {
+                    enable: true
+                }
+            }
+        };
+
+        $(document).ready(function() {
+            var array = [];
+            layui.use(['form','layer'], function(){
+                var form = layui.form
+                    ,layer = layui.layer;
+
+                //自定义验证规则
+                form.verify({
+                    name: function(value){
+                        if(value.length < 5){
+                            return '权限名称至少得5个字符';
+                        }
+                    }
+                });
+
+                $.ajax({
+                    url : '/permission/all?page=1&limit=9999',
+                    type : 'get',
+                    contentType:"application/json",
+                    // dataType : 'json',
+                    // data : JSON.stringify({
+                    //     username:username,
+                    //     password:password
+                    // }),
+                    async:false,
+                    success : function(re) {
+                        if(re.code === 0){
+                            if(re.data !== undefined) {
+                                for (var i = 0; i < re.data.length; i++) {
+                                    var obj = {};
+                                    obj['id'] = re.data[i].permissionId;
+                                    obj['name'] = re.data[i].permissionName;
+                                    obj['pId'] = re.data[i].parentId;
+                                    if(re.data[i].parentId === 0) obj['open'] = true;
+                                    array[i] = obj;
+                                }
+                                $.fn.zTree.init($("#treeDemo"), setting, array);
+                            }
+                            form.render();
+                        }else{
+                            layer.msg(re.msg)
+                        }
+                    }
+                });
+
+                var obj = GetRequest();
+                var type = 'post';
+                var id = 0;
+                if(Object.keys(obj).length === 1){
+                    type = 'put';
+                    id = obj['id'];
+                    $.ajax({
+                        url : '/role/'+id,
+                        type : 'get',
+                        contentType:"application/json",
+                        // dataType : 'json',
+                        // data : JSON.stringify({
+                        //     username:username,
+                        //     password:password
+                        // }),
+                        async:false,
+                        success : function(re) {
+                            if(re.code === 200){
+                                $('#name').val(re.data.roleName);
+                                $('#desc').val(re.data.remark);
+                                if(re.data.permissions !== undefined){
+                                    var treeObj = $.fn.zTree.getZTreeObj("treeDemo");
+                                    /** 获取所有树节点 */
+                                    var nodes = treeObj.transformToArray(treeObj.getNodes());
+                                    for (var i=0;i<re.data.permissions.length;i++)
+                                    {
+                                        for (var k = 0, length_3 = nodes.length; k < length_3; k++) {
+                                            if (re.data.permissions[i].permissionName === nodes[k].name) {
+                                                nodes[k].checked = true;
+                                                treeObj.updateNode(nodes[k],true);
+                                            }
+                                        }
+                                    }
+                                    console.log(nodes);
+                                }
+                                form.render();
+                            }else{
+                                layer.msg(re.msg)
+                            }
+                        }
+                    });
+                }
+
+                //监听提交
+                form.on('submit(add)', function(data){
+                    //发异步，把数据提交给php
+                    var treeObj=$.fn.zTree.getZTreeObj("treeDemo"),
+                        nodes=treeObj.getCheckedNodes(true);
+                    var arr = [];
+                    $(nodes).each(function(i){
+                        var pobj = {};
+                        pobj['permissionId'] = nodes[i].id;
+                        arr[i] = pobj;
+                    });
+                    console.log(arr);
+                    var name = $('#name').val();
+                    var desc = $('#desc').val();
+                    $.ajax({
+                        url : '/role/',
+                        type : type,
+                        contentType:"application/json",
+                        dataType : 'json',
+                        data : JSON.stringify({
+                            roleId:id,
+                            roleName:name,
+                            remark:desc,
+                            permissions:arr
+                        }),
+                        async:false,
+                        success : function(re) {
+                            if(re.code === 200){
+                                layer.alert("编辑成功", {icon: 6},function () {
+                                    // 获得frame索引
+                                    var index = parent.layer.getFrameIndex(window.name);
+                                    //关闭当前frame
+                                    parent.layer.close(index);
+                                });
+                            }else{
+                                layer.msg(re.msg)
+                            }
+                        }
+                    });
+                    return false;
+                });
+            });
+
+        });
+
+        function GetRequest() {
+            var url = location.search; //获取url中"?"符后的字串
+            var theRequest = {};
+            if (url.indexOf("?") != -1) {
+                var str = url.substr(1);
+                strs = str.split("&");
+                for(var i = 0; i < strs.length; i ++) {
+                    theRequest[strs[i].split("=")[0]]=unescape(strs[i].split("=")[1]);
+                }
+            }
+            console.log(theRequest);
+            return theRequest;
+        }
+    </script>
+    <script>
+        var _hmt = _hmt || []; (function() {
+        var hm = document.createElement("script");
+        hm.src = "https://hm.baidu.com/hm.js?b393d153aeb26b46e9431fabaf0f6190";
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(hm, s);
+      })();</script>
+  </body>
+
+</html>
